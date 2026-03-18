@@ -1,0 +1,38 @@
+{
+  "entities": {
+    "Movie": {
+      "title": "Movie",
+      "description": "A movie or TV show available on the platform.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "The title of the movie." },
+        "description": { "type": "string", "description": "A short summary of the plot." },
+        "thumbnailUrl": { "type": "string", "format": "uri", "description": "URL to the movie's thumbnail image." },
+        "videoUrl": { "type": "string", "format": "uri", "description": "URL to the movie's video file." },
+        "category": { "type": "string", "enum": ["Trending", "Action", "Comedy", "Horror", "Romance", "Documentaries"], "description": "The genre or category of the movie." },
+        "language": { "type": "string", "enum": ["Hindi", "Bangla", "Telugu", "English", "Other"], "description": "The language of the movie." },
+        "duration": { "type": "string", "description": "Duration of the movie (e.g., 2h 15m)." },
+        "releaseDate": { "type": "string", "format": "date", "description": "The release date of the movie." },
+        "isFeatured": { "type": "boolean", "description": "Whether the movie should be featured in the hero section." },
+        "views": { "type": "integer", "description": "The number of views of the movie." }
+      },
+      "required": ["title", "description", "thumbnailUrl", "videoUrl", "category"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A user of the platform.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "watchlist": { "type": "array", "items": { "type": "string" }, "description": "Array of movie IDs in the user's watchlist." }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/movies": { "schema": "Movie", "description": "Collection of all movies." },
+    "/users": { "schema": "User", "description": "Collection of user profiles and watchlists." }
+  }
+}

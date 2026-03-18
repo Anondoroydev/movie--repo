@@ -1,0 +1,5 @@
+{
+  "name": "Remix: Netflix Clone BD",
+  "description": "A full-stack Netflix clone with movie categories, search, user watchlist, and an admin panel for content management.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: movies
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required)
+    //   - description: string (required)
+    //   - thumbnailUrl: string (required)
+    //   - videoUrl: string (required)
+    //   - type: string (required, enum: 'movie', 'tv-show')
+    //   - category: string (required, enum)
+    //   - language: string (required, enum)
+    //   - duration: string (optional)
+    //   - releaseDate: string (optional)
+    //   - isFeatured: boolean (optional)
+    //
+    // Collection: users
+    // Document ID: userId (uid)
+    // Fields:
+    //   - email: string (required)
+    //   - displayName: string (optional)
+    //   - role: string (required, enum: 'user', 'admin')
+    //   - watchlist: list (optional, array of movie IDs)
+    //   - isBlocked: boolean (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isPreAuthorizedAdmin() {
+      return isAuthenticated() && request.auth.token.email in ["ajoysarkar9098@gmail.com", "ajoysarker553@gmail.com", "anondo554@gmail.com"];
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          (request.auth.token.email == "ajoysarkar9098@gmail.com" && request.auth.token.email_verified == true) ||
+          (isPreAuthorizedAdmin() && request.auth.token.email_verified == true)
+        );
+    }
+
+    function isValidMovie(data) {
+      return (!('title' in data) || (data.title is string && data.title.size() > 0 && data.title.size() < 200)) &&
+             (!('description' in data) || (data.description is string && data.description.size() > 0 && data.description.size() < 2000)) &&
+             (!('thumbnailUrl' in data) || (data.thumbnailUrl is string && data.thumbnailUrl.size() > 0)) &&
+             (!('videoUrl' in data) || (data.videoUrl is string && data.videoUrl.size() > 0)) &&
+             (!('type' in data) || (data.type in ["movie", "tv-show"])) &&
+             (!('category' in data) || (data.category in ["Trending", "Action", "Comedy", "Horror", "Romance", "Documentaries"])) &&
+             (!('language' in data) || (data.language in ["Hindi", "Bangla", "Telugu", "English", "Other"])) &&
+             (!('views' in data) || (data.views is int && data.views >= 0));
+    }
+
+    function hasRequiredMovieFields(data) {
+      return data.keys().hasAll(['title', 'description', 'thumbnailUrl', 'videoUrl', 'type', 'category', 'language']);
+    }
+
+    function isValidUser(data) {
+      return data.email is string && data.email.size() > 0 &&
+             data.role in ['user', 'admin'] &&
+             (!('isBlocked' in data) || data.isBlocked is bool);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /movies/{movieId} {
+      allow read: if true; // Movies are publicly readable
+      allow create: if isAdmin() && hasRequiredMovieFields(request.resource.data) && isValidMovie(request.resource.data);
+      allow update: if isAdmin() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views']) && isValidMovie(request.resource.data));
+      allow delete: if isAdmin();
+    }
+
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if (isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'user' || isPreAuthorizedAdmin() || isAdmin()) && (!('isBlocked' in request.resource.data) || request.resource.data.isBlocked == false || isAdmin())) || isAdmin();
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data) && 
+        (isAdmin() || (isOwner(userId) && request.resource.data.role == resource.data.role && (!('isBlocked' in request.resource.data) || request.resource.data.isBlocked == resource.data.isBlocked)));
+      allow delete: if isAdmin();
+    }
+
+    match /preauthorized_admins/{email} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
